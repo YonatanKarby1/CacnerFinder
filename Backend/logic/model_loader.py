@@ -7,9 +7,6 @@ logger = logging.getLogger(__name__)
 
 class ModelLoader:
 
-    def __init__(self):
-        pass
-
     @staticmethod
     def load_model(model_path: str) -> keras.models.Model | None:
         """Load the classification model from H5 file"""

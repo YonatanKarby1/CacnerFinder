@@ -39,7 +39,7 @@ def predict():
         
         response = {
             'category': output.catagory.value,
-            'confidence': f"{output.confidence:.4f}",
+            'confidence': float(f"{output.confidence:.4f}"),
             'success': True
         }
         

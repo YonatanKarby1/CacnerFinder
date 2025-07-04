@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
-import { X, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle, Clock, Calendar, Download } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { X, TriangleAlert as AlertTriangle, Clock, Calendar } from 'lucide-react-native';
 import styles from './styles/report.styles';
 import { usePhoto } from '../PhotoContext';
 import { MalenomaCatagories } from '@/app/common/malenomaCatagories';
+import { AnimatedSandClock } from './components/AnimatedSandClock';
+import { TakeAnotherPhotoPage } from './components/takeAnotherPhotoPage';
 
 interface AnalysisResult {
   catagory: MalenomaCatagories;
@@ -25,7 +27,7 @@ const getRiskColor = (catagory: string) => {
 const getRiskIcon = (catagory: string) => {
   switch (catagory) {
     case MalenomaCatagories.Malignant:
-      return <CheckCircle size={32} color="#10b981" strokeWidth={2} />;
+      return <Clock size={32} color="#10b981" strokeWidth={2} />;
     case MalenomaCatagories.Benign:
       return <Clock size={32} color="#f59e0b" strokeWidth={2} />;
     default:
@@ -66,78 +68,41 @@ const makeBackendRequest = async (imageBase64: string) => {
   });
   const data = await result.json();
   
-  console.log("received response from backend")
-  console.log(data)
-  
-  const category = data['category'];
-  const confidence = data['confidence'];
-
-  return { category, confidence };
+  return {
+    catagory: data['category'],
+    confidence: data['confidence']
+  } as AnalysisResult
 }
 
 export default function ReportScreen() {
-  const params = useLocalSearchParams();
   const [isAnalyzing, setIsAnalyzing] = useState(true);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const { photo } = usePhoto();
 
-  // For history, still support params
-  const fromHistory = params.fromHistory === 'true';
-
   useEffect(() => {
-    if (fromHistory) {
-      // Load from history
-      const mockResult: AnalysisResult = {
-        catagory: params.result as 'malignant' | 'benign',
-        confidence: parseInt(params.confidence as string)
-      };
-      setAnalysisResult(mockResult);
-      setIsAnalyzing(false);
-    } else if (photo && photo.base64) {
-      // Simulate analysis
+    console.log("Here");
+    setIsAnalyzing(true);
+    if (photo && photo.base64) {
       analyzeImage();
     } else {
       setIsAnalyzing(false);
     }
-  }, []);
+  }, [photo]);
 
   const analyzeImage = async () => {
     try {
-      // Simulate API call delay
-      const response = await makeBackendRequest(photo!.base64!.replace(/^data:image\/\w+;base64,/, ''));
-
-      // Mock analysis result
-      const mockResult: AnalysisResult = {
-        catagory: response.category,
-        confidence: parseFloat(response.confidence) * 100,
-      };
-
-      setAnalysisResult(mockResult);
+      const result = await makeBackendRequest(photo!.base64!.replace(/^data:image\/\w+;base64,/, ''));
+      setAnalysisResult(result);
       setIsAnalyzing(false);
 
-      // Save to history (in a real app, this would be async storage)
-      // saveToHistory(photo!.uri, mockResult);
     } catch (error) {
       console.error('Analysis failed:', error);
       setIsAnalyzing(false);
     }
   };
 
-  if (!fromHistory && !photo) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.errorContainer}>
-          <AlertTriangle size={64} color="#ef4444" strokeWidth={1.5} />
-          <Text style={styles.errorTitle}>No Photo Found</Text>
-          <Text style={styles.errorText}>
-            No photo was found for analysis. Please take a new photo.
-          </Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => router.push('/(tabs)')}>
-            <Text style={styles.retryButtonText}>Take Photo</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
+  if (!photo) {
+    return <TakeAnotherPhotoPage title="No Photo Found" description="No photo was found for analysis. Please take a new photo." />
   }
 
   if (isAnalyzing) {
@@ -150,17 +115,13 @@ export default function ReportScreen() {
         </View>
 
         <View style={styles.analyzingContainer}>
-          <Image source={{ uri: fromHistory ? (params.imageUri as string) : photo!.uri }} style={styles.analyzingImage} />
-          <ActivityIndicator size="large" color="#2563eb" style={styles.loader} />
+          <Image source={{ uri: photo!.uri }} style={styles.analyzingImage} />
           <Text style={styles.analyzingTitle}>Analyzing Your Mole</Text>
           <Text style={styles.analyzingText}>
             Our AI is carefully examining the image for various characteristics...
           </Text>
-          <View style={styles.progressSteps}>
-            <Text style={styles.stepText}>✓ Image quality check</Text>
-            <Text style={styles.stepText}>✓ Feature extraction</Text>
-            <Text style={styles.stepText}>⏳ Pattern analysis</Text>
-            <Text style={styles.stepTextPending}>○ Risk assessment</Text>
+          <View>
+            <AnimatedSandClock texts={['Image quality check', 'Feature extraction', 'Pattern analysis', 'Risk assessment']} />
           </View>
         </View>
       </View>
@@ -168,20 +129,7 @@ export default function ReportScreen() {
   }
 
   if (!analysisResult) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.errorContainer}>
-          <AlertTriangle size={64} color="#ef4444" strokeWidth={1.5} />
-          <Text style={styles.errorTitle}>Analysis Failed</Text>
-          <Text style={styles.errorText}>
-            We couldn't analyze your image. Please try again with a clearer photo.
-          </Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => router.back()}>
-            <Text style={styles.retryButtonText}>Take Another Photo</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
+    return <TakeAnotherPhotoPage title="Analysis Failed" description="We couldn't analyze your image. Please try again with a clearer photo." />
   }
 
   return (
@@ -196,7 +144,7 @@ export default function ReportScreen() {
 
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.imageContainer}>
-          <Image source={{ uri: fromHistory ? (params.imageUri as string) : photo!.uri }} style={styles.reportImage} />
+          <Image source={{ uri: photo!.uri }} style={styles.reportImage} />
         </View>
 
         <View style={styles.resultContainer}>

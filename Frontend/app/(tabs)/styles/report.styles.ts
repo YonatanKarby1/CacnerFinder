@@ -99,6 +99,14 @@ export default StyleSheet.create({
     marginBottom: 16,
     textAlign: 'center',
   },
+  takePhotoText: {
+    fontSize: 16,
+    color: '#83b570',
+    textAlign: 'center',
+    fontWeight: 'bold',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
   errorText: {
     fontSize: 16,
     color: '#6b7280',
